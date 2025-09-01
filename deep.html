@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>3D Viewer - FBX Animation</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #ui-overlay {
+            position: fixed;
+            z-index: 10;
+            pointer-events: none;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        #header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+            pointer-events: none;
+        }
+
+        #info {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 16px 24px;
+            border-radius: 12px;
+            max-width: 320px;
+            pointer-events: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #info h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            background: linear-gradient(90deg, #ff8a00, #e52e71);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        #info p {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: #e0e0e0;
+            margin-bottom: 12px;
+        }
+
+        #info a {
+            color: #00d9ff;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-block;
+            margin-top: 8px;
+            transition: all 0.3s ease;
+            pointer-events: auto;
+        }
+
+        #info a:hover {
+            color: #ff8a00;
+            transform: translateY(-2px);
+        }
+
+        #controls {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 12px;
+            margin-left: auto;
+            pointer-events: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .control-btn i {
+            font-size: 18px;
+        }
+
+        #footer {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            pointer-events: none;
+        }
+
+        #asset-controls {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 16px 24px;
+            border-radius: 12px;
+            display: flex;
+            gap: 16px;
+            pointer-events: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .asset-btn {
+            background: linear-gradient(135deg, #6e45e2 0%, #88d3ce 100%);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .asset-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(110, 69, 226, 0.4);
+        }
+
+        .asset-btn.active {
+            background: linear-gradient(135deg, #ff8a00 0%, #e52e71 100%);
+        }
+
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            border-top: 5px solid #6e45e2;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #loading p {
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            #header {
+                flex-direction: column;
+                gap: 16px;
+            }
+            
+            #controls {
+                flex-direction: row;
+                margin-left: 0;
+            }
+            
+            #asset-controls {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>Loading 3D Model...</p>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <div id="ui-overlay">
+        <div id="header">
+            <div id="info">
+                <h1>3D Animation Viewer</h1>
+                <p>Experience this beautifully rendered FBX animation with Three.js technology.</p>
+                <a href="https://web19dev.netlify.app" target="_blank" rel="noopener">View More →</a>
+            </div>
+            
+            <div id="controls">
+                <button class="control-btn" id="play-pause" title="Play/Pause">
+                    <i>▶</i>
+                </button>
+                <button class="control-btn" id="reset-camera" title="Reset Camera">
+                    <i>↺</i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./scripts/three.module.js",
+                "three/addons/": "./scripts/addons/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/OrbitControls.js';
+        import { FBXLoader } from 'three/addons/FBXLoader.js';
+
+        const manager = new THREE.LoadingManager();
+        let camera, scene, renderer, object, loader;
+        let mixer, controls;
+        let isPlaying = true;
+
+        const clock = new THREE.Clock();
+
+        // Set up loading manager to hide loading screen when done
+        manager.onLoad = function() {
+            document.getElementById('loading').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+            }, 500);
+        };
+
+        init();
+
+        function init() {
+            // Create container for the renderer
+            const container = document.getElementById('canvas-container');
+
+            // Set up camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
+            camera.position.set(10, 200, 300);
+            camera.lookAt(10, 100, 0);
+
+            // Set up scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            scene.fog = new THREE.Fog(0x1a1a2e, 200, 1000);
+
+            // Enhanced lighting
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 3);
+            hemiLight.position.set(0, 400, 0);
+            scene.add(hemiLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 4);
+            dirLight.position.set(0, 400, 200);
+            dirLight.castShadow = true;
+            dirLight.shadow.camera.top = 300;
+            dirLight.shadow.camera.bottom = -300;
+            dirLight.shadow.camera.left = -300;
+            dirLight.shadow.camera.right = 300;
+            scene.add(dirLight);
+
+            // Add ambient light for better overall illumination
+            const ambientLight = new THREE.AmbientLight(0x333333, 1);
+            scene.add(ambientLight);
+
+            // Improved ground with better texture
+            const groundGeometry = new THREE.PlaneGeometry(600, 600);
+            const groundMaterial = new THREE.MeshStandardMaterial({
+                color: 0x2c3e50,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -20;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Load the initial asset
+            loader = new FBXLoader(manager);
+            loadAsset('Samba Dancing');
+
+            // Set up renderer with better settings
+            renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                alpha: true
+            });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            container.appendChild(renderer.domElement);
+
+            // Add orbit controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 100, 0);
+            controls.update();
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+
+            // Set up UI event listeners
+            setupEventListeners();
+
+            // Start animation loop
+            renderer.setAnimationLoop(animate);
+        }
+
+        function loadAsset(asset) {
+            // Show loading screen when loading new asset
+            document.getElementById('loading').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('loading').style.opacity = '1';
+            }, 10);
+
+            loader.load('model/' + asset + '.fbx', function (group) {
+                // Clean up previous object
+                if (object) {
+                    object.traverse(function (child) {
+                        if (child.isSkinnedMesh) {
+                            child.skeleton.dispose();
+                        }
+                        if (child.material) {
+                            const materials = Array.isArray(child.material) ? child.material : [child.material];
+                            materials.forEach(material => {
+                                if (material.map) material.map.dispose();
+                                material.dispose();
+                            });
+                        }
+                        if (child.geometry) child.geometry.dispose();
+                    });
+                    scene.remove(object);
+                }
+
+                // Add new object
+                object = group;
+                
+                if (object.animations && object.animations.length) {
+                    mixer = new THREE.AnimationMixer(object);
+                    const action = mixer.clipAction(object.animations[0]);
+                    action.play();
+                } else {
+                    mixer = null;
+                }
+
+                object.traverse(function (child) {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+
+                scene.add(object);
+                
+                // Hide loading screen when asset is loaded
+                manager.onLoad();
+            }, undefined, function(error) {
+                console.error('An error happened loading the model:', error);
+                manager.onLoad(); // Still hide loading screen on error
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            const delta = clock.getDelta();
+            if (mixer && isPlaying) mixer.update(delta);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function setupEventListeners() {
+            // Play/Pause button
+            document.getElementById('play-pause').addEventListener('click', function() {
+                isPlaying = !isPlaying;
+                this.innerHTML = isPlaying ? '❚❚' : '▶';
+            });
+
+            // Reset camera button
+            document.getElementById('reset-camera').addEventListener('click', function() {
+                controls.reset();
+            });
+
+            // Asset buttons
+            document.querySelectorAll('.asset-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const asset = this.getAttribute('data-asset');
+                    
+                    // Update active button
+                    document.querySelectorAll('.asset-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    // Load the selected asset
+                    loadAsset(asset);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
