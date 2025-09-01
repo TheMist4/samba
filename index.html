@@ -257,8 +257,8 @@
     <script type="importmap">
         {
             "imports": {
-                "three": "./scripts/three.module.js",
-                "three/addons/": "./scripts/addons/"
+                "three": "./three.module.js",
+                "three/addons/": "./"
             }
         }
     </script>
@@ -370,7 +370,7 @@
                 document.getElementById('loading').style.opacity = '1';
             }, 10);
 
-            loader.load('model/' + asset + '.fbx', function (group) {
+            loader.load( asset + '.fbx', function (group) {
                 // Clean up previous object
                 if (object) {
                     object.traverse(function (child) {
